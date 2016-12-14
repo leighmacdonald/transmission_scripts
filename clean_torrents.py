@@ -17,16 +17,18 @@ LOCAL_ERRORS = {
     "no data found"
 }
 
+# Seed a bit longer than required to account for any weirdness
 SEED_TIME_BUFFER = 1.1
+
 
 RULES_DEFAULT = 'DEFAULT'
 
 RULES = {
-    'apollo.rip': {
+    'apollo.rip/': {
         'min_time': (3600 * 24 * 30) * SEED_TIME_BUFFER,
         'max_ratio': 2.0
     },
-    'landof.tv': {
+    'landof.tv/': {
         'min_time': (3600 * 120.0) * SEED_TIME_BUFFER,
         'max_ratio': 1.0
     },
@@ -61,6 +63,18 @@ def make_client():
 
 
 def remove_torrent(client, torrent, reason="None", dry_run=False):
+    """ Remove a torrent from the client stopping it first if its in a started state.
+
+    :param client: Transmission RPC Client
+    :type client: transmissionrpc.Client
+    :param torrent: Torrent instance to remove
+    :type torrent: transmissionrpc.Torrent
+    :param reason: Reason for removal
+    :type reason: str
+    :param dry_run: Do a dry run without actually running any commands
+    :type dry_run: bool
+    :return:
+    """
     if torrent.status != "stopped":
         if not dry_run:
             client.stop_torrent(torrent.hashString)
@@ -70,12 +84,24 @@ def remove_torrent(client, torrent, reason="None", dry_run=False):
 
 
 def remove_unknown_torrents(client):
+    """ Remove torrents that the remote tracker no longer tracking for whatever
+    reason, usually removed by admins.
+
+    :param client: Transmission RPC Client
+    :type client: transmissionrpc.Client
+    """
     for torrent in client.get_torrents():
         if torrent.error >= 2 and torrent.errorString.lower() in REMOTE_MESSAGES:
             remove_torrent(client, torrent)
 
 
 def remove_local_errors(client):
+    """ Removed torrents that have local filesystem errors, usually caused by moving data
+    outside of transmission.
+
+    :param client: Transmission RPC Client
+    :type client: transmissionrpc.Client
+    """
     for torrent in client.get_torrents():
         if torrent.error == 3:
             for errmsg in LOCAL_ERRORS:
@@ -85,6 +111,13 @@ def remove_local_errors(client):
 
 
 def clean_min_time_ratio(client):
+    """ Remove torrents that are either have seeded enough time-wise or ratio-wise.
+    The correct rule set is determined by checking the torrent announce url and
+    matching it to a specific rule set defined above.
+
+    :param client: Transmission RPC Client
+    :type client: transmissionrpc.Client
+    """
     for torrent in client.get_torrents():
         if torrent.error or torrent.status != "seeding":
             continue
