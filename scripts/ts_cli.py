@@ -49,6 +49,9 @@ class TorrentCLI(cmd.Cmd):
                 is_int = True
             if is_int:
                 torrents = torrents[0:int(arg)]
+            elif arg in ("c","count"):
+                print(len(torrents))
+                return []
             elif arg in Filter.names:
                 torrents = filter_torrents_by(torrents, key=getattr(Filter, arg))
             elif arg in Sort.names:
