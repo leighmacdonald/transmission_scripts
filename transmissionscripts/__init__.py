@@ -142,7 +142,7 @@ def load_config(path=None):
         path = find_config()
     if path and exists(path):
         CONFIG = load(open(path))
-        logger.info("Loaded config file: {}".format(path))
+        logger.debug("Loaded config file: {}".format(path))
     return False
 
 
@@ -168,39 +168,82 @@ def make_client(args=None):
     )
 
 
+class Filter(object):
+    names = (
+        "all",
+        "active",
+        "downloading",
+        "seeding",
+        "paused",
+        "finished"
+    )
+
+    @staticmethod
+    def all(t):
+        return t
+
+    @staticmethod
+    def active(t):
+        return t.rateUpload > 0 or t.rateDownload > 0
+
+    @staticmethod
+    def downloading(t):
+        return t.status == 'downloading'
+
+    @staticmethod
+    def seeding(t):
+        return t.status == 'seeding'
+
+    @staticmethod
+    def paused(t):
+        return t.status == 'stopped'
+
+    @staticmethod
+    def finished(t):
+        return t.status == 'finished'
+
+
+def filter_torrents_by(torrents, key=Filter.all):
+    """
+
+    :param key:
+    :param torrents:
+    :type torrents: []transmissionrpc.Torrent
+    :param key:
+    :return: []transmissionrpc.Torrent
+    """
+    return filter(key, torrents)
+
+
 class Sort(object):
+    """ Defines methods for sorting torrent sequences """
+
+    names = (
+        "id",
+        "progress",
+        "name",
+        "size",
+    )
+
     @staticmethod
     def progress(t):
         return t.progress
 
     @staticmethod
     def name(t):
-        return t.name
+        return t.name.lower()
 
     @staticmethod
     def size(t):
         return t.totalSize
 
     @staticmethod
-    def progress_incomplete(t):
-        return t.progress
-
-    @staticmethod
     def id(t):
         return t.id
 
 
-class Filter(object):
-    @staticmethod
-    def active(t):
-        return t.name
-
-
 def sort_torrents_by(torrents, key=Sort.name, reverse=False):
-    t = sorted(torrents, key=key, reverse=reverse)
-    if key == Sort.progress_incomplete:
-        t = [tor for tor in t if tor.progress < 100.0]
-    return t
+    return sorted(torrents, key=key, reverse=reverse)
 
 
 def white_on_blk(t):
