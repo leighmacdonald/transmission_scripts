@@ -35,7 +35,18 @@ class TorrentCLI(cmd.Cmd):
 
     def _apply_filters(self, line, torrents):
         for arg in [arg.strip().lower() for arg in line.split("|") if arg]:
-            if arg in Filter.names:
+            try:
+                if int(arg) <= 0:
+                    print("Limit too low, must be positive integer: {}".format(arg))
+                    # Bail early
+                    return []
+            except ValueError:
+                is_int = False
+            else:
+                is_int = True
+            if is_int:
+                torrents = torrents[0:int(arg)]
+            elif arg in Filter.names:
                 torrents = filter_torrents_by(torrents, key=getattr(Filter, arg))
             elif arg in Sort.names:
                 torrents = sort_torrents_by(torrents, key=getattr(Sort, arg))

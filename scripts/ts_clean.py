@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import argparse
-
 from transmissionscripts import make_client, remove_unknown_torrents, remove_local_errors, clean_min_time_ratio, \
     make_arg_parser
 
