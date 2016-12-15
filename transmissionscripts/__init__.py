@@ -216,16 +216,19 @@ class Filter(object):
     def paused(t):
         return t.status == 'paused'
 
+
 def filter_torrents_by(torrents, key=Filter.all):
     """
 
     :param key:
     :param torrents:
-    :type torrents: []transmissionrpc.Torrent
-    :param key:
     :return: []transmissionrpc.Torrent
     """
-    return filter(key, torrents)
+    filtered_torrents = []
+    for torrent in torrents:
+        if key(torrent):
+            filtered_torrents.append(torrent)
+    return filtered_torrents
 
 
 class Sort(object):
@@ -236,6 +239,7 @@ class Sort(object):
         "progress",
         "name",
         "size",
+        "ratio"
     )
 
     @staticmethod
@@ -253,6 +257,10 @@ class Sort(object):
     @staticmethod
     def id(t):
         return t.id
+
+    @staticmethod
+    def ratio(t):
+        return t.ratio
 
 
 def sort_torrents_by(torrents, key=Sort.name, reverse=False):
@@ -280,16 +288,18 @@ def cyan_on_blk(t):
 
 
 def print_torrent_line(torrent, colourize=True):
-    print("[{}] {} {:.0%}{}".format(
+    print("[{}] {} {:.0%}{} {} [{}]".format(
         white_on_blk(torrent.id),
         print_pct(torrent) if colourize else torrent.name,
         torrent.progress / 100.0,
-        white_on_blk("")
+        white_on_blk(""),
+        torrent.ratio,
+        yellow_on_blk(torrent.status)
     ))
 
 
 def print_pct(torrent, complete='green', incomplete='red'):
-    completed = math.floor(len(torrent.name) * (torrent.progress / 100.0))
+    completed = int(math.floor(len(torrent.name) * (torrent.progress / 100.0)))
     t = "{}{}".format(
         termcolor.colored(torrent.name[0:completed], complete, attrs=['bold']),
         termcolor.colored(torrent.name[completed:], incomplete, attrs=['bold'])

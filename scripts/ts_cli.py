@@ -5,7 +5,11 @@
 """
 import argparse
 import cmd
-from urllib.parse import urlparse
+
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 
 from transmissionscripts import make_client, make_arg_parser, print_torrent_line, Filter, Sort, filter_torrents_by, \
     sort_torrents_by
@@ -16,7 +20,7 @@ class TorrentCLI(cmd.Cmd):
     prompt = "(TS)$ "
 
     def __init__(self, client):
-        super().__init__()
+        cmd.Cmd.__init__(self)
         self.client = client
         self.prompt = self._generate_prompt()
 
@@ -38,14 +42,16 @@ class TorrentCLI(cmd.Cmd):
             elif arg in ("stop", "pause"):
                 for torrent in torrents:
                     self.client.stop_torrent(torrent.hashString)
+                print("\n> Stopping {} torrents.\n".format(len(torrents)))
             elif arg in ("start", "start"):
                 for torrent in torrents:
                     self.client.start_torrent(torrent.hashString)
+                print("\n> Starting {} torrents.\n".format(len(torrents)))
             elif "=" in arg:
                 cmd_name, cmd_arg = arg.split("=")
                 if cmd_name in ("n", "name"):
-                    def filter_name(torrent):
-                        return torrent.name.lower().startswith(cmd_arg)
+                    def filter_name(t):
+                        return t.name.lower().startswith(cmd_arg)
                     torrents = filter_torrents_by(torrents, key=filter_name)
         return torrents
 
