@@ -1,16 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Simple script to clean out torrents that should no longer be tracked within
-the client.
+Simple set of functionality to manage a local or remote transmission instance. You can think of this
+as a set of helper functions for interacting with the transmissionrpc python module.
 """
 import argparse
 import errno
+import logging
+import math
+import termcolor
 from json import dumps, load
 from os.path import expanduser, join, exists, isdir
 from os import makedirs
 from transmissionrpc import Client
 from transmissionrpc import DEFAULT_PORT
+
+logging.basicConfig()
+
+logger = logging.getLogger('transmissionscripts')
+logger.setLevel(logging.INFO)
 
 CONFIG_DIR = expanduser("~/.config/transmissionscripts")
 CONFIG_FILE = join(CONFIG_DIR, "config.json")
@@ -25,7 +33,6 @@ LOCAL_ERRORS = {
 
 # Seed a bit longer than required to account for any weirdness
 SEED_TIME_BUFFER = 1.1
-
 
 RULES_DEFAULT = 'DEFAULT'
 
@@ -53,17 +60,36 @@ CONFIG = {
 }
 
 
-def find_rule_set(trackers):
+def find_rule_set(torrent):
+    """ Return the rule set associated with the torrent.
+
+    :param torrent: Torrent instance to search
+    :type torrent: transmissionrpc.Torrent
+    :return: A matching rule set if it exists, otherwise a default rule set
+    :rtype: dict
+    """
+
     for key in CONFIG['RULES']:
-        for tracker in trackers:
+        for tracker in torrent.trackers:
             if key in tracker['announce'].lower():
                 return CONFIG['RULES'][key]
     return CONFIG['RULES'][RULES_DEFAULT]
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description='Clean out old torrents from the transmission client via RPC')
+def make_arg_parser():
+    """ Create a new argparse instance that can optionally be extended to include custom
+    options before passing the options into the client as demonstrated below.
+
+    >>> def parse_args():
+    >>>     parser = make_arg_parser()
+    >>>     parser.add_argument('--sort_progress', action='store_true')
+    >>>     return parser.parse_args()
+    >>> rpc_client = make_client(parse_args())
+
+    :return: New argparse instance
+    :rtype: argparse.ArgumentParser
+    """
+    parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--host', '-H', default=None, type=str, help="Transmission RPC Host")
     parser.add_argument('--port', '-p', type=int, default=0, help="Transmission RPC Port")
     parser.add_argument('--user', '-u', default=None, help="Optional username", dest="user")
@@ -72,7 +98,15 @@ def parse_args():
                         help="Generate a config file that can be used to override defaults")
     parser.add_argument('--force', '-f', help="Overwrite existing files",
                         dest='force', action='store_true')
-    return parser.parse_args()
+    return parser
+
+
+def parse_args():
+    """ Trivial shortcut to calling the default argparse.parse_args()
+
+    :return:
+    """
+    return make_arg_parser().parse_args()
 
 
 def find_config():
@@ -93,7 +127,7 @@ def mkdir_p(path):
 
 def generate_config(overwrite=False):
     if exists(CONFIG_FILE) and not overwrite:
-        print("Config file exists already! Use -f to overwrite it.")
+        logger.fatal("Config file exists already! Use -f to overwrite it.")
         return False
     if not exists(CONFIG_DIR):
         mkdir_p(CONFIG_DIR)
@@ -108,12 +142,21 @@ def load_config(path=None):
         path = find_config()
     if path and exists(path):
         CONFIG = load(open(path))
-        print("Loaded config file: {}".format(path))
+        logger.info("Loaded config file: {}".format(path))
     return False
 
 
-def make_client():
-    args = parse_args()
+def make_client(args=None):
+    """ Create a new transmission RPC client
+
+    If you want to parse more than the standard CLI arguments, like when creating a new customized
+    script, you can append your options to the argument parser.
+
+    :param args: Optional CLI args passed in.
+    :return:
+    """
+    if args is None:
+        args = parse_args()
     if args.generate:
         generate_config(args.force)
     load_config()
@@ -123,6 +166,79 @@ def make_client():
         user=args.user or CONFIG['CLIENT']['user'],
         password=args.password or CONFIG['CLIENT']['password']
     )
+
+
+class Sort(object):
+    @staticmethod
+    def progress(t):
+        return t.progress
+
+    @staticmethod
+    def name(t):
+        return t.name
+
+    @staticmethod
+    def size(t):
+        return t.totalSize
+
+    @staticmethod
+    def progress_incomplete(t):
+        return t.progress
+
+    @staticmethod
+    def id(t):
+        return t.id
+
+
+class Filter(object):
+    @staticmethod
+    def active(t):
+        return t.name
+
+
+def sort_torrents_by(torrents, key=Sort.name, reverse=False):
+    t = sorted(torrents, key=key, reverse=reverse)
+    if key == Sort.progress_incomplete:
+        t = [tor for tor in t if tor.progress < 100.0]
+    return t
+
+
+def white_on_blk(t):
+    return termcolor.colored(t, "white")
+
+
+def green_on_blk(t):
+    return termcolor.colored(t, "green")
+
+
+def yellow_on_blk(t):
+    return termcolor.colored(t, "yellow")
+
+
+def red_on_blk(t):
+    return termcolor.colored(t, "red")
+
+
+def cyan_on_blk(t):
+    return termcolor.colored(t, "cyan")
+
+
+def print_torrent_line(torrent, colourize=True):
+    print("[{}] {} {:.0%}{}".format(
+        white_on_blk(torrent.id),
+        print_pct(torrent) if colourize else torrent.name,
+        torrent.progress / 100.0,
+        white_on_blk("")
+    ))
+
+
+def print_pct(torrent, complete='green', incomplete='red'):
+    completed = math.floor(len(torrent.name) * (torrent.progress / 100.0))
+    t = "{}{}".format(
+        termcolor.colored(torrent.name[0:completed], complete, attrs=['bold']),
+        termcolor.colored(torrent.name[completed:], incomplete, attrs=['bold'])
+    )
+    return t
 
 
 def remove_torrent(client, torrent, reason="None", dry_run=False):
@@ -143,7 +259,7 @@ def remove_torrent(client, torrent, reason="None", dry_run=False):
             client.stop_torrent(torrent.hashString)
     if not dry_run:
         client.remove_torrent(torrent.hashString, delete_data=False)
-    print("Removed: {} {}\nReason: {}".format(torrent.name, torrent.hashString, reason))
+    logger.info("Removed: {} {}\nReason: {}".format(torrent.name, torrent.hashString, reason))
 
 
 def remove_unknown_torrents(client):
@@ -184,7 +300,7 @@ def clean_min_time_ratio(client):
     for torrent in client.get_torrents():
         if torrent.error or torrent.status != "seeding":
             continue
-        rule_set = find_rule_set(torrent.trackers)
+        rule_set = find_rule_set(torrent)
         if torrent.ratio > rule_set['max_ratio']:
             remove_torrent(client, torrent, "max_ratio threshold passed", dry_run=False)
         if torrent.secondsSeeding > rule_set['min_time']:
