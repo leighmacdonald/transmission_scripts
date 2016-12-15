@@ -12,7 +12,7 @@ except ImportError:
     from urlparse import urlparse
 
 from transmissionscripts import make_client, make_arg_parser, print_torrent_line, Filter, Sort, filter_torrents_by, \
-    sort_torrents_by
+    sort_torrents_by, find_tracker
 
 
 class TorrentCLI(cmd.Cmd):
@@ -32,6 +32,9 @@ class TorrentCLI(cmd.Cmd):
         torrents = self._apply_filters(line, self.client.get_torrents())
         for torrent in torrents:
             print_torrent_line(torrent)
+
+    def do_exit(self, line):
+        raise KeyboardInterrupt
 
     def _apply_filters(self, line, torrents):
         for arg in [arg.strip().lower() for arg in line.split("|") if arg]:
@@ -64,6 +67,10 @@ class TorrentCLI(cmd.Cmd):
                     def filter_name(t):
                         return t.name.lower().startswith(cmd_arg)
                     torrents = filter_torrents_by(torrents, key=filter_name)
+                elif cmd_name in ("t", "tracker"):
+                    def filter_tracker(t):
+                        return cmd_arg.lower() in find_tracker(t).lower()
+                    torrents = filter_torrents_by(torrents, key=filter_tracker)
         return torrents
 
 
@@ -76,4 +83,7 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    TorrentCLI(make_client(parse_args())).cmdloop()
+    try:
+        TorrentCLI(make_client(parse_args())).cmdloop()
+    except KeyboardInterrupt:
+        print("")

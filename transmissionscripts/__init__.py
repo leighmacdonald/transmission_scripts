@@ -44,15 +44,18 @@ CONFIG = {
         'password': None
     },
     'RULES': {
-        'apollo.rip/': {
+        'apollo': {
+            'name': 'apollo',
             'min_time': int((3600 * 24 * 30) * SEED_TIME_BUFFER),
             'max_ratio': 2.0
         },
-        'landof.tv/': {
+        'landof.tv': {
+            'name': 'btn',
             'min_time': int((3600 * 120.0) * SEED_TIME_BUFFER),
             'max_ratio': 1.0
         },
         RULES_DEFAULT: {
+            'name': 'default',
             'min_time': int((3600 * 240) * SEED_TIME_BUFFER),
             'max_ratio': 2.0
         }
@@ -74,6 +77,14 @@ def find_rule_set(torrent):
             if key in tracker['announce'].lower():
                 return CONFIG['RULES'][key]
     return CONFIG['RULES'][RULES_DEFAULT]
+
+
+def find_tracker(torrent):
+    for key in CONFIG['RULES']:
+        for tracker in torrent.trackers:
+            if key in tracker['announce'].lower():
+                return CONFIG['RULES'][key]['name']
+    return CONFIG['RULES'][RULES_DEFAULT]['name']
 
 
 def make_arg_parser():
