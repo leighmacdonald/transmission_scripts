@@ -5,8 +5,7 @@ Simple script that will output a list of the currently loaded torrents. Various 
 and filtering options exist.
 """
 import argparse
-from transmissionscripts import make_client, sort_torrents_by, Sort, print_torrent_line, make_arg_parser, Filter, \
-    filter_torrents_by
+from transmissionscripts import make_client, Sort, print_torrent_line, make_arg_parser, Filter
 
 
 def parse_args():
@@ -23,11 +22,10 @@ if __name__ == "__main__":
     rpc_client = make_client(args)
 
     # Fetch torrents performing filtering/sorting if requested
-    torrents = rpc_client.get_torrents()
-    if args.filter:
-        torrents = filter_torrents_by(torrents, key=getattr(Filter, args.filter))
-    if args.sort:
-        torrents = sort_torrents_by(torrents, key=getattr(Sort, args.sort), reverse=False)
+    torrents = rpc_client.get_torrents_by(
+        filter_by=args.filter if args.filter else None,
+        sort_by=args.sort if args.sort else None
+    )
 
     # Output the results
     for torrent in torrents:

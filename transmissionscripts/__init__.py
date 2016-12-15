@@ -146,6 +146,16 @@ def load_config(path=None):
     return False
 
 
+class TSClient(Client):
+    def get_torrents_by(self, sort_by=None, filter_by=None, reverse=False):
+        torrents = self.get_torrents()
+        if filter_by:
+            torrents = filter_torrents_by(torrents, key=getattr(Filter, filter_by))
+        if sort_by:
+            torrents = sort_torrents_by(torrents, key=getattr(Sort, sort_by), reverse=reverse)
+        return torrents
+
+
 def make_client(args=None):
     """ Create a new transmission RPC client
 
@@ -160,7 +170,7 @@ def make_client(args=None):
     if args.generate:
         generate_config(args.force)
     load_config()
-    return Client(
+    return TSClient(
         args.host or CONFIG['CLIENT']['host'],
         port=args.port or CONFIG['CLIENT']['port'],
         user=args.user or CONFIG['CLIENT']['user'],
@@ -174,7 +184,7 @@ class Filter(object):
         "active",
         "downloading",
         "seeding",
-        "paused",
+        "stopped",
         "finished"
     )
 
@@ -195,13 +205,16 @@ class Filter(object):
         return t.status == 'seeding'
 
     @staticmethod
-    def paused(t):
+    def stopped(t):
         return t.status == 'stopped'
 
     @staticmethod
     def finished(t):
         return t.status == 'finished'
 
+    @staticmethod
+    def paused(t):
+        return t.status == 'paused'
 
 def filter_torrents_by(torrents, key=Filter.all):
     """
