@@ -50,5 +50,9 @@ Some Commands available:
         598
         (TS@172.16.1.9:9091)> ls | 5 | count
         5
+        (TS@172.16.1.9:9091)> ls | t=btn | c
+        296
+        (TS@172.16.1.9:9091)> ls | t=apo | c
+        110
         (TS@172.16.1.9:9091)>
 
