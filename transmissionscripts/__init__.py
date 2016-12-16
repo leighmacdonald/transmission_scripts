@@ -15,6 +15,8 @@ from os import makedirs, environ
 from transmissionrpc import Client
 from transmissionrpc import DEFAULT_PORT
 
+VERSION = "0.2.3"
+
 
 def _supports_color():
     """ Returns True if the running system's terminal supports color,
