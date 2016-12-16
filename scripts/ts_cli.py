@@ -26,6 +26,7 @@ class TorrentCLI(cmd.Cmd):
     prompt = "(TS)$ "
     _cmd_print = ("p", "print")
     _cmd_count = ("c", "cnt", "count")
+    _cmd_reverse = ("r", "rev", "reverse")
 
     def __init__(self, client):
         cmd.Cmd.__init__(self)
@@ -79,6 +80,8 @@ class TorrentCLI(cmd.Cmd):
             elif arg in self._cmd_count:
                 print(len(torrents))
                 return []
+            elif arg in self._cmd_reverse:
+                torrents.reverse()
             elif arg in Filter.names:
                 torrents = filter_torrents_by(torrents, key=getattr(Filter, arg))
             elif arg in Sort.names:
