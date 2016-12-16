@@ -8,12 +8,35 @@ import argparse
 import errno
 import logging
 import math
-import termcolor
+import sys
 from json import dumps, load
 from os.path import expanduser, join, exists, isdir
-from os import makedirs
+from os import makedirs, environ
 from transmissionrpc import Client
 from transmissionrpc import DEFAULT_PORT
+
+
+def _supports_color():
+    """ Returns True if the running system's terminal supports color,
+    and False otherwise.
+
+    If the FORCE_COLOR environment variable is used, auto detection methods will be skipped.
+    - 1 enables force ansi colours
+    - 0 to disable it
+
+    """
+    plat = sys.platform
+    # Silly hack to force use of ansi color codes when cannot be detected properly.
+    if 'FORCE_COLOR' in environ:
+        return environ['FORCE_COLOR'] != 0
+    supported_platform = plat != 'Pocket PC' and (plat != 'win32' or 'ANSICON' in environ)
+    is_a_tty = hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
+    if not supported_platform or not is_a_tty:
+        return False
+    return True
+
+
+HAS_COLOUR = _supports_color()
 
 logging.basicConfig()
 
@@ -61,6 +84,14 @@ CONFIG = {
         }
     }
 }
+
+
+def colored(msg, color=None, on_color=None, attrs=None):
+    if HAS_COLOUR:
+        from termcolor import colored as c
+        return c(msg, color=color, on_color=on_color, attrs=attrs)
+    else:
+        return msg
 
 
 def find_rule_set(torrent):
@@ -279,23 +310,23 @@ def sort_torrents_by(torrents, key=Sort.name, reverse=False):
 
 
 def white_on_blk(t):
-    return termcolor.colored(t, "white")
+    return colored(t, "white")
 
 
 def green_on_blk(t):
-    return termcolor.colored(t, "green")
+    return colored(t, "green")
 
 
 def yellow_on_blk(t):
-    return termcolor.colored(t, "yellow")
+    return colored(t, "yellow")
 
 
 def red_on_blk(t):
-    return termcolor.colored(t, "red")
+    return colored(t, "red")
 
 
 def cyan_on_blk(t):
-    return termcolor.colored(t, "cyan")
+    return colored(t, "cyan")
 
 
 def print_torrent_line(torrent, colourize=True):
@@ -312,8 +343,8 @@ def print_torrent_line(torrent, colourize=True):
 def print_pct(torrent, complete='green', incomplete='red'):
     completed = int(math.floor(len(torrent.name) * (torrent.progress / 100.0)))
     t = "{}{}".format(
-        termcolor.colored(torrent.name[0:completed], complete, attrs=['bold']),
-        termcolor.colored(torrent.name[completed:], incomplete, attrs=['bold'])
+        colored(torrent.name[0:completed], complete, attrs=['bold']),
+        colored(torrent.name[completed:], incomplete, attrs=['bold'])
     )
     return t
 

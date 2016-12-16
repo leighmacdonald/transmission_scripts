@@ -6,13 +6,12 @@
 import argparse
 import cmd
 
-import termcolor
+from transmissionscripts import colored
 
 try:
     from urllib.parse import urlparse
 except ImportError:
     from urlparse import urlparse
-
 from transmissionscripts import make_client, make_arg_parser, print_torrent_line, Filter, Sort, filter_torrents_by, \
     sort_torrents_by, find_tracker
 
@@ -38,7 +37,7 @@ class TorrentCLI(cmd.Cmd):
         return "(TS@{}:{})> ".format(url.hostname, url.port)
 
     def msg(self, msg, prefix=">>>", color="green"):
-        print(termcolor.colored("{} {}".format(prefix, msg), color=color))
+        print(colored("{} {}".format(prefix, msg), color=color))
 
     def error(self, msg):
         self.msg(msg, "!!!", "red")
