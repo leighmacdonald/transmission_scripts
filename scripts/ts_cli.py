@@ -6,6 +6,8 @@
 import argparse
 import cmd
 
+import termcolor
+
 try:
     from urllib.parse import urlparse
 except ImportError:
@@ -15,9 +17,15 @@ from transmissionscripts import make_client, make_arg_parser, print_torrent_line
     sort_torrents_by, find_tracker
 
 
+class CmdError(Exception):
+    pass
+
+
 class TorrentCLI(cmd.Cmd):
 
     prompt = "(TS)$ "
+    _cmd_print = ("p", "print")
+    _cmd_count = ("c", "cnt", "count")
 
     def __init__(self, client):
         cmd.Cmd.__init__(self)
@@ -28,16 +36,30 @@ class TorrentCLI(cmd.Cmd):
         url = urlparse(self.client.url)
         return "(TS@{}:{})> ".format(url.hostname, url.port)
 
+    def msg(self, msg, prefix=">>>", color="green"):
+        print(termcolor.colored("{} {}".format(prefix, msg), color=color))
+
+    def error(self, msg):
+        self.msg(msg, "!!!", "red")
+
     def do_ls(self, line):
-        torrents = self._apply_filters(line, self.client.get_torrents())
-        for torrent in torrents:
-            print_torrent_line(torrent)
+        args = [arg.strip().lower() for arg in line.split("|") if arg]
+        try:
+            torrents = self._apply_functions(self.client.get_torrents(), args)
+            if not args:
+                self.print_torrents(torrents)
+        except CmdError as err:
+            self.error(err)
 
     def do_exit(self, line):
         raise KeyboardInterrupt
 
-    def _apply_filters(self, line, torrents):
-        for arg in [arg.strip().lower() for arg in line.split("|") if arg]:
+    def print_torrents(self, torrents):
+        for torrent in torrents:
+            print_torrent_line(torrent)
+
+    def _apply_functions(self, torrents, args):
+        for i, arg in enumerate(args, start=1):
             try:
                 if int(arg) <= 0:
                     print("Limit too low, must be positive integer: {}".format(arg))
@@ -49,7 +71,12 @@ class TorrentCLI(cmd.Cmd):
                 is_int = True
             if is_int:
                 torrents = torrents[0:int(arg)]
-            elif arg in ("c", "count"):
+                # Special case to print when limit was the last argument
+                if i == len(args):
+                    self.print_torrents(torrents)
+            elif arg in self._cmd_print:
+                self.print_torrents(torrents)
+            elif arg in self._cmd_count:
                 print(len(torrents))
                 return []
             elif arg in Filter.names:
@@ -59,11 +86,11 @@ class TorrentCLI(cmd.Cmd):
             elif arg in ("stop", "pause"):
                 for torrent in torrents:
                     self.client.stop_torrent(torrent.hashString)
-                print("\n> Stopping {} torrents.\n".format(len(torrents)))
+                self.msg("Stopping {} torrents.".format(len(torrents)))
             elif arg in ("start", "start"):
                 for torrent in torrents:
                     self.client.start_torrent(torrent.hashString)
-                print("\n> Starting {} torrents.\n".format(len(torrents)))
+                self.msg("Starting {} torrents.".format(len(torrents)))
             elif "=" in arg:
                 cmd_name, cmd_arg = arg.split("=")
                 if cmd_name in ("n", "name"):
@@ -74,6 +101,8 @@ class TorrentCLI(cmd.Cmd):
                     def filter_tracker(t):
                         return cmd_arg.lower() in find_tracker(t).lower()
                     torrents = filter_torrents_by(torrents, key=filter_tracker)
+            else:
+                raise CmdError("Unknown function: {}".format(arg))
         return torrents
 
 
