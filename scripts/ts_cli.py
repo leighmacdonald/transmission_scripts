@@ -5,7 +5,6 @@
 """
 import argparse
 import cmd
-
 from transmissionscripts import colored
 
 try:
@@ -21,7 +20,6 @@ class CmdError(Exception):
 
 
 class TorrentCLI(cmd.Cmd):
-
     prompt = "(TS)$ "
     _cmd_print = ("p", "print")
     _cmd_count = ("c", "cnt", "count")

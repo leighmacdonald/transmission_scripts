@@ -10,12 +10,13 @@ import logging
 import math
 import sys
 from json import dumps, load
-from os.path import expanduser, join, exists, isdir
+from os.path import expanduser, join, exists, isdir, dirname
 from os import makedirs, environ
-from transmissionrpc import Client
-from transmissionrpc import DEFAULT_PORT
+from transmissionrpc import Client, DEFAULT_PORT
 
-__VERSION__ = "0.2.3"
+
+with open(join(dirname(dirname(__file__)), 'VERSION')) as version_file:
+    __VERSION__ = version_file.read().strip()
 
 
 def _supports_color():
@@ -30,7 +31,7 @@ def _supports_color():
     plat = sys.platform
     # Silly hack to force use of ansi color codes when cannot be detected properly.
     if 'FORCE_COLOR' in environ:
-        return environ['FORCE_COLOR'] != 0
+        return int(environ['FORCE_COLOR']) == 1
     supported_platform = plat != 'Pocket PC' and (plat != 'win32' or 'ANSICON' in environ)
     is_a_tty = hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
     if not supported_platform or not is_a_tty:
@@ -112,6 +113,7 @@ def find_rule_set(torrent):
     return CONFIG['RULES'][RULES_DEFAULT]
 
 
+# noinspection PyTypeChecker
 def find_tracker(torrent):
     for key in CONFIG['RULES']:
         for tracker in torrent.trackers:
@@ -283,7 +285,10 @@ class Sort(object):
         "progress",
         "name",
         "size",
-        "ratio"
+        "ratio",
+        "speed",
+        "speed_up",
+        "speed_down"
     )
 
     @staticmethod
@@ -306,9 +311,23 @@ class Sort(object):
     def ratio(t):
         return t.ratio
 
+    @staticmethod
+    def speed(t):
+        return t.rateUpload + t.rateDownload
+
+    @staticmethod
+    def speed_up(t):
+        return t.rateUpload
+
+    @staticmethod
+    def speed_down(t):
+        return t.rateDownload
+
 
 def sort_torrents_by(torrents, key=Sort.name, reverse=False):
     return sorted(torrents, key=key, reverse=reverse)
+
+_reset_color = colored("", "white")
 
 
 def white_on_blk(t):
@@ -316,28 +335,31 @@ def white_on_blk(t):
 
 
 def green_on_blk(t):
-    return colored(t, "green")
+    return colored(t, "green") + _reset_color
 
 
 def yellow_on_blk(t):
-    return colored(t, "yellow")
+    return colored(t, "yellow") + _reset_color
 
 
 def red_on_blk(t):
-    return colored(t, "red")
+    return colored(t, "red") + _reset_color
 
 
 def cyan_on_blk(t):
-    return colored(t, "cyan")
+    return colored(t, "cyan") + _reset_color
 
 
 def print_torrent_line(torrent, colourize=True):
-    print("[{}] {} {:.0%}{} {} [{}]".format(
+    print("[{}] [{}] {} {:.0%}{} ra: {} up: {} dn: {} [{}]".format(
         white_on_blk(torrent.id),
+        find_tracker(torrent),
         print_pct(torrent) if colourize else torrent.name,
         torrent.progress / 100.0,
         white_on_blk(""),
-        torrent.ratio,
+        red_on_blk(torrent.ratio) if torrent.ratio < 1.0 else green_on_blk(torrent.ratio),
+        green_on_blk(natural_size(float(torrent.rateUpload)) + "/s") if torrent.rateUpload else "0.0 kB/s",
+        green_on_blk(natural_size(float(torrent.rateDownload)) + "/s") if torrent.rateDownload else "0.0 kB/s",
         yellow_on_blk(torrent.status)
     ))
 
@@ -415,3 +437,46 @@ def clean_min_time_ratio(client):
             remove_torrent(client, torrent, "max_ratio threshold passed", dry_run=False)
         if torrent.secondsSeeding > rule_set['min_time']:
             remove_torrent(client, torrent, "min_time threshold passed", dry_run=False)
+
+
+suffixes = {
+    'decimal': ('kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'),
+    'binary': ('KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'),
+    'gnu': "KMGTPEZY",
+}
+
+
+# noinspection PyUnboundLocalVariable
+def natural_size(value, binary=False, gnu=False, fmt='%.1f'):
+    """ Format a number of byteslike a human readable filesize (eg. 10 kB).  By
+    default, decimal suffixes (kB, MB) are used.  Passing binary=true will use
+    binary suffixes (KiB, MiB) are used and the base will be 2**10 instead of
+    10**3.  If ``gnu`` is True, the binary argument is ignored and GNU-style
+    (ls -sh style) prefixes are used (K, M) with the 2**10 definition.
+    """
+    if gnu:
+        suffix = suffixes['gnu']
+    elif binary:
+        suffix = suffixes['binary']
+    else:
+        suffix = suffixes['decimal']
+
+    base = 1024 if (gnu or binary) else 1000
+    bytes = float(value)
+
+    if bytes == 1 and not gnu:
+        return '1 Byte'
+    elif bytes < base and not gnu:
+        return '%d Bytes' % bytes
+    elif bytes < base and gnu:
+        return '%dB' % bytes
+
+    for i, s in enumerate(suffix):
+        unit = base ** (i + 2)
+        if bytes < unit and not gnu:
+            return (fmt + ' %s') % ((base * bytes / unit), s)
+        elif bytes < unit and gnu:
+            return (fmt + '%s') % ((base * bytes / unit), s)
+    if gnu:
+        return (fmt + '%s') % ((base * bytes / unit), s)
+    return (fmt + ' %s') % ((base * bytes / unit), s)

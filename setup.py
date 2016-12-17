@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 from distutils.core import setup
 from os.path import dirname, join
-from transmissionscripts import __VERSION__
 
+with open(join(dirname(__file__), 'VERSION')) as version_file:
+    version = version_file.read().strip()
 
 setup(
     name='transmissionscripts',
-    version=__VERSION__,
+    version=version,
     include_package_data=True,
     license="MIT",
-    requires=['transmissionrpc', 'termcolor'],
+    install_requires=['transmissionrpc', 'termcolor'],
     description='Various scripts to manage transmission',
     author='Leigh MacDonald',
     author_email='leigh.macdonald@gmail.com',
@@ -17,7 +18,7 @@ setup(
     url='https://github.com/leighmacdonald/transmission_scripts',
     packages=['transmissionscripts'],
     scripts=['scripts/ts_clean.py', 'scripts/ts_cli.py', 'scripts/ts_list.py'],
-    download_url='https://github.com/leighmacdonald/transmission_scripts/tarball/{}'.format(__VERSION__),
+    download_url='https://github.com/leighmacdonald/transmission_scripts/tarball/{}'.format(version),
     keywords=["torrent", "transmission", "p2p"],
     classifiers=[
         "Environment :: Console",
