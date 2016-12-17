@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Simple script that will output a list of the currently loaded torrents. Various formatting, colouring, sorting
