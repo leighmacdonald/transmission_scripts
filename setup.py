@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 from distutils.core import setup
 from os.path import dirname, join
-from transmissionscripts.const import __VERSION__
+from transmissionscripts import const
 
 setup(
     name='transmissionscripts',
-    version=__VERSION__,
+    version=const.__VERSION__,
     include_package_data=True,
     license="MIT",
     install_requires=['transmissionrpc', 'termcolor'],
@@ -16,7 +16,7 @@ setup(
     url='https://github.com/leighmacdonald/transmission_scripts',
     packages=['transmissionscripts'],
     scripts=['scripts/ts_clean.py', 'scripts/ts_cli.py', 'scripts/ts_list.py'],
-    download_url='https://github.com/leighmacdonald/transmission_scripts/tarball/{}'.format(__VERSION__),
+    download_url='https://github.com/leighmacdonald/transmission_scripts/tarball/{}'.format(const.__VERSION__),
     keywords=["torrent", "transmission", "p2p"],
     classifiers=[
         "Environment :: Console",
