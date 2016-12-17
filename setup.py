@@ -2,7 +2,7 @@
 from distutils.core import setup
 from os.path import dirname, join
 
-VERSION = "0.2.7"
+VERSION = "0.2.8"
 
 setup(
     name='transmissionscripts',
