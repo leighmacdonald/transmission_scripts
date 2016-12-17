@@ -10,13 +10,9 @@ import logging
 import math
 import sys
 from json import dumps, load
-from os.path import expanduser, join, exists, isdir, dirname
+from os.path import expanduser, join, exists, isdir
 from os import makedirs, environ
 from transmissionrpc import Client, DEFAULT_PORT
-
-
-with open(join(dirname(dirname(__file__)), 'VERSION')) as version_file:
-    __VERSION__ = version_file.read().strip()
 
 
 def _supports_color():
