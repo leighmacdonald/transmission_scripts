@@ -293,8 +293,23 @@ class Sort(object):
         "ratio",
         "speed",
         "speed_up",
-        "speed_down"
+        "speed_down",
+        "status",
+        "queue",
+        "age"
     )
+
+    @staticmethod
+    def age(t):
+        return t.date_added
+
+    @staticmethod
+    def queue(t):
+        return t.queue_position
+
+    @staticmethod
+    def status(t):
+        return t.status
 
     @staticmethod
     def progress(t):
@@ -356,10 +371,11 @@ def cyan_on_blk(t):
 
 
 def print_torrent_line(torrent, colourize=True):
+    name = torrent.name
     print("[{}] [{}] {} {:.0%}{} ra: {} up: {} dn: {} [{}]".format(
         white_on_blk(torrent.id),
         find_tracker(torrent),
-        print_pct(torrent) if colourize else torrent.name,
+        print_pct(torrent) if colourize else name.decode("latin-1"),
         torrent.progress / 100.0,
         white_on_blk(""),
         red_on_blk(torrent.ratio) if torrent.ratio < 1.0 else green_on_blk(torrent.ratio),
@@ -370,7 +386,8 @@ def print_torrent_line(torrent, colourize=True):
 
 
 def print_pct(torrent, complete='green', incomplete='red'):
-    completed = int(math.floor(len(torrent.name) * (torrent.progress / 100.0)))
+    name = torrent.name
+    completed = int(math.floor(len(name) * (torrent.progress / 100.0)))
     t = "{}{}".format(
         colored(torrent.name[0:completed], complete, attrs=['bold']),
         colored(torrent.name[completed:], incomplete, attrs=['bold'])
