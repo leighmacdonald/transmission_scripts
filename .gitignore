@@ -4,3 +4,5 @@ __pycache__/
 MANIFEST
 dist/
 *.pyc
+setup.cfg
+*-info

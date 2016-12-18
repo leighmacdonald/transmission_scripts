@@ -33,6 +33,11 @@ class TorrentCLI(cmd.Cmd):
     _args_time = re.compile(r"(?P<dir>[<>])(?P<duration>\d+)(?P<unit>[mhdwMY])")
 
     def __init__(self, client):
+        """
+
+        :param client:
+        :type client: transmissionrpc.Client
+        """
         cmd.Cmd.__init__(self)
         self.client = client
         self.prompt = self._generate_prompt()
@@ -154,6 +159,24 @@ class TorrentCLI(cmd.Cmd):
             else:
                 raise CmdError("Unknown function: {}".format(arg))
         return torrents
+
+    def do_stop(self, line):
+        ids = line.split(" ")
+        if not ids:
+            self.error("Must supply at least 1 id")
+        self.client.stop_torrent(ids)
+        self.msg("Stopped {} torrents".format(len(ids)))
+
+    def do_start(self, line):
+        ids = line.split(" ")
+        if not ids:
+            self.error("Must supply at least 1 id")
+        self.client.start_torrent(ids)
+        self.msg("Started {} torrents".format(len(ids)))
+
+    def do_startall(self, line):
+        self.client.start_all()
+        self.msg("Started all torrents")
 
     def conditional_print(self, torrents, condition=False):
         if condition:
