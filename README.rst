@@ -104,7 +104,7 @@ The operator (< or >), the duration, a positive integer, and a unit, one of [mhd
 - M = Months
 - Y = Years
 
-Limiting to torrents less than 10 hours old.
+Limiting to torrents less than 10 hours old.::
 
     (TS@172.16.1.9:9091)> ls | time=<10h
     [665] [BTN] the.daily.show.2016.12.14.michael.k.williams.720p.hdtv.x264-w4f.mkv [100%/424.1 MB] ra: 0.0961 up: 0.0 kB/s dn: 0.0 kB/s [seeding]
