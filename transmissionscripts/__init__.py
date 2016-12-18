@@ -340,19 +340,19 @@ def white_on_blk(t):
 
 
 def green_on_blk(t):
-    return colored(t, "green") + _reset_color
+    return "{}{}".format(colored(t, "green"), _reset_color)
 
 
 def yellow_on_blk(t):
-    return colored(t, "yellow") + _reset_color
+    return "{}{}".format(colored(t, "yellow"), _reset_color)
 
 
 def red_on_blk(t):
-    return colored(t, "red") + _reset_color
+    return "{}{}".format(colored(t, "red"), _reset_color)
 
 
 def cyan_on_blk(t):
-    return colored(t, "cyan") + _reset_color
+    return "{}{}".format(colored(t, "cyan"), _reset_color)
 
 
 def print_torrent_line(torrent, colourize=True):
