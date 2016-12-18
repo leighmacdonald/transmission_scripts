@@ -127,11 +127,15 @@ def parse_args():
         description='Clean out old torrents from the transmission client via RPC',
         parents=[make_arg_parser()]
     )
+    parser.add_argument("--exec", "-x", dest="execute", help="Run a single command line string and exit without "
+                                                             "opening the REPL.")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
+    args = parse_args()
+    cli = TorrentCLI(make_client(args))
     try:
-        TorrentCLI(make_client(parse_args())).cmdloop()
+        cli.onecmd(args.execute) if args.execute else cli.cmdloop()
     except KeyboardInterrupt:
         print("")
