@@ -2,14 +2,21 @@
 from distutils.core import setup
 from os.path import dirname, join
 
-VERSION = "0.2.8"
+import sys
+
+VERSION = "0.2.9"
+
+if sys.platform == "win32":
+    install_requires = ['transmissionrpc', 'termcolor', 'colorama']
+else:
+    install_requires = ['transmissionrpc', 'termcolor']
 
 setup(
     name='transmissionscripts',
     version=VERSION,
     include_package_data=True,
     license="MIT",
-    install_requires=['transmissionrpc', 'termcolor'],
+    install_requires=install_requires,
     description='Various scripts to manage transmission',
     author='Leigh MacDonald',
     author_email='leigh.macdonald@gmail.com',

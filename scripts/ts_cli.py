@@ -40,6 +40,9 @@ class TorrentCLI(cmd.Cmd):
     def error(self, msg):
         self.msg(msg, "!!!", "red")
 
+    def help_ls(self):
+        print("HELP FOR LS")
+
     def do_ls(self, line):
         args = [arg.strip().lower() for arg in line.split("|") if arg]
         try:
@@ -79,10 +82,16 @@ class TorrentCLI(cmd.Cmd):
                 return []
             elif arg in self._cmd_reverse:
                 torrents.reverse()
+                if i == len(args):
+                    self.print_torrents(torrents)
             elif arg in Filter.names:
                 torrents = filter_torrents_by(torrents, key=getattr(Filter, arg))
+                if i == len(args):
+                    self.print_torrents(torrents)
             elif arg in Sort.names:
                 torrents = sort_torrents_by(torrents, key=getattr(Sort, arg))
+                if i == len(args):
+                    self.print_torrents(torrents)
             elif arg in ("stop", "pause"):
                 for torrent in torrents:
                     self.client.stop_torrent(torrent.hashString)
@@ -97,13 +106,20 @@ class TorrentCLI(cmd.Cmd):
                     def filter_name(t):
                         return t.name.lower().startswith(cmd_arg)
                     torrents = filter_torrents_by(torrents, key=filter_name)
+                    if i == len(args):
+                        self.print_torrents(torrents)
                 elif cmd_name in ("t", "tracker"):
                     def filter_tracker(t):
                         return cmd_arg.lower() in find_tracker(t).lower()
                     torrents = filter_torrents_by(torrents, key=filter_tracker)
+                    self.conditional_print(torrents, i == len(args))
             else:
                 raise CmdError("Unknown function: {}".format(arg))
         return torrents
+
+    def conditional_print(self, torrents, condition=False):
+        if condition:
+            self.print_torrents(torrents)
 
 
 def parse_args():

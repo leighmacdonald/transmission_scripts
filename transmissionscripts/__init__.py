@@ -31,6 +31,15 @@ def _supports_color():
     supported_platform = plat != 'Pocket PC' and (plat != 'win32' or 'ANSICON' in environ)
     is_a_tty = hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
     if not supported_platform or not is_a_tty:
+        if plat == 'win32':
+            try:
+                # noinspection PyUnresolvedReferences
+                import colorama
+            except ImportError:
+                pass
+            else:
+                colorama.init()
+                return True
         return False
     return True
 
