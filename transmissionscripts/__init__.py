@@ -12,9 +12,57 @@ import sys
 from json import dumps, load
 from os.path import expanduser, join, exists, isdir
 from os import makedirs, environ
-from transmissionrpc import Client, DEFAULT_PORT
+import transmissionrpc
+
+logging.basicConfig()
+
+logger = logging.getLogger('transmissionscripts')
+logger.setLevel(logging.INFO)
+
+CONFIG_DIR = expanduser("~/.config/transmissionscripts")
+CONFIG_FILE = join(CONFIG_DIR, "config.json")
+
+REMOTE_MESSAGES = {
+    "unregistered torrent"  # BTN / Gazelle
+}
+
+LOCAL_ERRORS = {
+    "no data found"
+}
+
+# Seed a bit longer than required to account for any weirdness
+SEED_TIME_BUFFER = 1.1
+
+RULES_DEFAULT = 'DEFAULT'
+
+CONFIG = {
+    'CLIENT': {
+        'host': 'localhost',
+        'port': transmissionrpc.DEFAULT_PORT,
+        'user': None,
+        'password': None
+    },
+    'RULES': {
+        'apollo': {
+            'name': 'apollo',
+            'min_time': int((3600 * 24 * 30) * SEED_TIME_BUFFER),
+            'max_ratio': 2.0
+        },
+        'landof.tv': {
+            'name': 'btn',
+            'min_time': int((3600 * 120.0) * SEED_TIME_BUFFER),
+            'max_ratio': 1.0
+        },
+        RULES_DEFAULT: {
+            'name': 'default',
+            'min_time': int((3600 * 240) * SEED_TIME_BUFFER),
+            'max_ratio': 2.0
+        }
+    }
+}
 
 
+# noinspection PyPackageRequirements
 def _supports_color():
     """ Returns True if the running system's terminal supports color,
     and False otherwise.
@@ -46,55 +94,19 @@ def _supports_color():
 
 HAS_COLOUR = _supports_color()
 
-logging.basicConfig()
-
-logger = logging.getLogger('transmissionscripts')
-logger.setLevel(logging.INFO)
-
-CONFIG_DIR = expanduser("~/.config/transmissionscripts")
-CONFIG_FILE = join(CONFIG_DIR, "config.json")
-
-REMOTE_MESSAGES = {
-    "unregistered torrent"  # BTN / Gazelle
-}
-
-LOCAL_ERRORS = {
-    "no data found"
-}
-
-# Seed a bit longer than required to account for any weirdness
-SEED_TIME_BUFFER = 1.1
-
-RULES_DEFAULT = 'DEFAULT'
-
-CONFIG = {
-    'CLIENT': {
-        'host': 'localhost',
-        'port': DEFAULT_PORT,
-        'user': None,
-        'password': None
-    },
-    'RULES': {
-        'apollo': {
-            'name': 'apollo',
-            'min_time': int((3600 * 24 * 30) * SEED_TIME_BUFFER),
-            'max_ratio': 2.0
-        },
-        'landof.tv': {
-            'name': 'btn',
-            'min_time': int((3600 * 120.0) * SEED_TIME_BUFFER),
-            'max_ratio': 1.0
-        },
-        RULES_DEFAULT: {
-            'name': 'default',
-            'min_time': int((3600 * 240) * SEED_TIME_BUFFER),
-            'max_ratio': 2.0
-        }
-    }
-}
-
 
 def colored(msg, color=None, on_color=None, attrs=None):
+    """Print a message to the console using colorized ANSI codes.
+
+    :param msg: Message to colorize
+    :type msg: str
+    :param color: One of `termcolor.COLORS`
+    :type color: str
+    :param on_color: Background color
+    :type on_color: str
+    :param attrs:
+    :return: str
+    """
     if HAS_COLOUR:
         from termcolor import colored as c
         return c(msg, color=color, on_color=on_color, attrs=attrs)
@@ -120,6 +132,14 @@ def find_rule_set(torrent):
 
 # noinspection PyTypeChecker
 def find_tracker(torrent):
+    """ Find the tracker that the torrent is associated with. This uses the announce
+    url to determine it based on the configured trackers. It will return default if it
+    cannot find a matching tracker or if you have not configured any custom tracker rules.
+
+    :param torrent: Torrent to search
+    :type torrent: transmissionrpc.Torrent
+    :return:
+    """
     for key in CONFIG['RULES']:
         for tracker in torrent.trackers:
             if key in tracker['announce'].lower():
@@ -160,13 +180,12 @@ def parse_args():
     return make_arg_parser().parse_args()
 
 
-def find_config():
-    if not exists(CONFIG_FILE):
-        return None
-    return CONFIG_FILE
-
-
 def mkdir_p(path):
+    """mimics the standard mkdir -p functionality when creating directories
+
+    :param path:
+    :return:
+    """
     try:
         makedirs(path)
     except OSError as exc:  # Python >2.5
@@ -177,6 +196,16 @@ def mkdir_p(path):
 
 
 def generate_config(overwrite=False):
+    """Generate a new config file based on the value of the CONFIG global variable.
+
+    This function will cause a fatal error if trying to overwrite an exiting file
+    without setting overwrite to True.
+
+    :param overwrite: Overwrite existing config file
+    :type overwrite: bool
+    :return: Create status
+    :rtype: bool
+    """
     if exists(CONFIG_FILE) and not overwrite:
         logger.fatal("Config file exists already! Use -f to overwrite it.")
         return False
@@ -188,17 +217,41 @@ def generate_config(overwrite=False):
 
 
 def load_config(path=None):
+    """Load a config file from disk using the default location if it exists. If path is defined
+    it will be used instead of the default path.
+
+    :param path: Optional path to config file
+    :type path: str
+    :return: Load status
+    :rtype: bool
+    """
     global CONFIG
     if not path:
-        path = find_config()
+        path = CONFIG_FILE
     if path and exists(path):
         CONFIG = load(open(path))
         logger.debug("Loaded config file: {}".format(path))
+        return True
     return False
 
 
-class TSClient(Client):
+class TSClient(transmissionrpc.Client):
+    """ Basic subclass of the standard transmissionrpc client which provides some simple
+    helper functionality.
+    """
+
     def get_torrents_by(self, sort_by=None, filter_by=None, reverse=False):
+        """This method will call get_torrents and then perform any sorting or filtering
+        actions requested on the returned torrent set.
+
+        :param sort_by: Sort key which must exist in `Sort.names` to be valid;
+        :type sort_by: str
+        :param filter_by:
+        :type filter_by: str
+        :param reverse:
+        :return: Sorted and filter torrent list
+        :rtype: transmissionrpc.Torrent[]
+        """
         torrents = self.get_torrents()
         if filter_by:
             torrents = filter_torrents_by(torrents, key=getattr(Filter, filter_by))
@@ -230,6 +283,8 @@ def make_client(args=None):
 
 
 class Filter(object):
+    """A set of filtering operations that can be used against a list of torrent objects"""
+
     names = (
         "all",
         "active",
@@ -263,10 +318,6 @@ class Filter(object):
     def finished(t):
         return t.status == 'finished'
 
-    @staticmethod
-    def paused(t):
-        return t.status == 'paused'
-
 
 def filter_torrents_by(torrents, key=Filter.all):
     """
@@ -296,8 +347,13 @@ class Sort(object):
         "speed_down",
         "status",
         "queue",
-        "age"
+        "age",
+        "activity"
     )
+
+    @staticmethod
+    def activity(t):
+        return t.date_active
 
     @staticmethod
     def age(t):
@@ -370,13 +426,20 @@ def cyan_on_blk(t):
     return "{}{}".format(colored(t, "cyan"), _reset_color)
 
 
+def magenta_on_blk(t):
+    return "{}{}".format(colored(t, "magenta"), _reset_color)
+
+
 def print_torrent_line(torrent, colourize=True):
     name = torrent.name
-    print("[{}] [{}] {} {:.0%}{} ra: {} up: {} dn: {} [{}]".format(
+    progress = torrent.progress / 100.0
+    print("[{}] [{}] {} {}[{}/{}]{} ra: {} up: {} dn: {} [{}]".format(
         white_on_blk(torrent.id),
         find_tracker(torrent),
         print_pct(torrent) if colourize else name.decode("latin-1"),
-        torrent.progress / 100.0,
+        white_on_blk(""),
+        red_on_blk("{:.0%}".format(progress)) if progress < 1 else green_on_blk("{:.0%}".format(progress)),
+        magenta_on_blk(natural_size(torrent.totalSize)),
         white_on_blk(""),
         red_on_blk(torrent.ratio) if torrent.ratio < 1.0 else green_on_blk(torrent.ratio),
         green_on_blk(natural_size(float(torrent.rateUpload)) + "/s") if torrent.rateUpload else "0.0 kB/s",
@@ -386,6 +449,18 @@ def print_torrent_line(torrent, colourize=True):
 
 
 def print_pct(torrent, complete='green', incomplete='red'):
+    """Prints out a torrents name using the complete color and percentage to determine how many characters
+    to colourize. The remaining percentage is coloured in the incomplete colour.
+
+    :param torrent: Torrent to use for name data
+    :type torrent: transmissionrpc.Torrent
+    :param complete: Complete colour keyword
+    :type complete: str
+    :param incomplete: Incomplete colour keyword
+    :type incomplete: str
+    :return: Colorized string
+    :rtype: str
+    """
     name = torrent.name
     completed = int(math.floor(len(name) * (torrent.progress / 100.0)))
     t = "{}{}".format(
@@ -461,7 +536,7 @@ def clean_min_time_ratio(client):
             remove_torrent(client, torrent, "min_time threshold passed", dry_run=False)
 
 
-suffixes = {
+_SUFFIXES = {
     'decimal': ('kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'),
     'binary': ('KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'),
     'gnu': "KMGTPEZY",
@@ -470,35 +545,35 @@ suffixes = {
 
 # noinspection PyUnboundLocalVariable
 def natural_size(value, binary=False, gnu=False, fmt='%.1f'):
-    """ Format a number of byteslike a human readable filesize (eg. 10 kB).  By
+    """ Format a number of bytes-like a human readable file size (eg. 10 kB).  By
     default, decimal suffixes (kB, MB) are used.  Passing binary=true will use
     binary suffixes (KiB, MiB) are used and the base will be 2**10 instead of
     10**3.  If ``gnu`` is True, the binary argument is ignored and GNU-style
     (ls -sh style) prefixes are used (K, M) with the 2**10 definition.
     """
     if gnu:
-        suffix = suffixes['gnu']
+        suffix = _SUFFIXES['gnu']
     elif binary:
-        suffix = suffixes['binary']
+        suffix = _SUFFIXES['binary']
     else:
-        suffix = suffixes['decimal']
+        suffix = _SUFFIXES['decimal']
 
     base = 1024 if (gnu or binary) else 1000
-    bytes = float(value)
+    byte_total = float(value)
 
-    if bytes == 1 and not gnu:
+    if byte_total == 1 and not gnu:
         return '1 Byte'
-    elif bytes < base and not gnu:
-        return '%d Bytes' % bytes
-    elif bytes < base and gnu:
-        return '%dB' % bytes
+    elif byte_total < base and not gnu:
+        return '%d Bytes' % byte_total
+    elif byte_total < base and gnu:
+        return '%dB' % byte_total
 
     for i, s in enumerate(suffix):
         unit = base ** (i + 2)
-        if bytes < unit and not gnu:
-            return (fmt + ' %s') % ((base * bytes / unit), s)
-        elif bytes < unit and gnu:
-            return (fmt + '%s') % ((base * bytes / unit), s)
+        if byte_total < unit and not gnu:
+            return (fmt + ' %s') % ((base * byte_total / unit), s)
+        elif byte_total < unit and gnu:
+            return (fmt + '%s') % ((base * byte_total / unit), s)
     if gnu:
-        return (fmt + '%s') % ((base * bytes / unit), s)
-    return (fmt + ' %s') % ((base * bytes / unit), s)
+        return (fmt + '%s') % ((base * byte_total / unit), s)
+    return (fmt + ' %s') % ((base * byte_total / unit), s)
