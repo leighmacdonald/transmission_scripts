@@ -318,6 +318,9 @@ class Filter(object):
     def finished(t):
         return t.status == 'finished'
 
+    @staticmethod
+    def lifetime(t):
+        return t.date_added
 
 def filter_torrents_by(torrents, key=Filter.all):
     """

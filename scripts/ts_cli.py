@@ -5,6 +5,9 @@
 """
 import argparse
 import cmd
+import re
+from datetime import timedelta, datetime
+
 from transmissionscripts import colored
 
 try:
@@ -24,6 +27,10 @@ class TorrentCLI(cmd.Cmd):
     _cmd_print = ("p", "print")
     _cmd_count = ("c", "cnt", "count")
     _cmd_reverse = ("r", "rev", "reverse")
+    _cmd_name = ("n", "name")
+    _cmd_tracker = ("t", "tracker")
+    _cmd_time = ("time")
+    _args_time = re.compile(r"(?P<dir>[<>])(?P<duration>\d+)(?P<unit>[mhdwMY])")
 
     def __init__(self, client):
         cmd.Cmd.__init__(self)
@@ -102,17 +109,48 @@ class TorrentCLI(cmd.Cmd):
                 self.msg("Starting {} torrents.".format(len(torrents)))
             elif "=" in arg:
                 cmd_name, cmd_arg = arg.split("=")
-                if cmd_name in ("n", "name"):
+                if cmd_name in self._cmd_name:
                     def filter_name(t):
                         return t.name.lower().startswith(cmd_arg)
                     torrents = filter_torrents_by(torrents, key=filter_name)
                     if i == len(args):
                         self.print_torrents(torrents)
-                elif cmd_name in ("t", "tracker"):
+                elif cmd_name in self._cmd_tracker:
                     def filter_tracker(t):
                         return cmd_arg.lower() in find_tracker(t).lower()
                     torrents = filter_torrents_by(torrents, key=filter_tracker)
                     self.conditional_print(torrents, i == len(args))
+                elif cmd_name in self._cmd_time:
+                    m = self._args_time.match(cmd_arg)
+                    if not m:
+                        return 0
+                    td_args = {}
+                    split, duration, unit = m.groups()
+                    duration = int(duration)
+                    # mhdwMY
+                    if unit == "w":
+                        td_args['weeks'] = duration
+                    elif unit == "m":
+                        td_args['minutes'] = duration
+                    elif unit == "h":
+                        td_args['hours'] = duration
+                    elif unit == "d":
+                        td_args['days'] = duration
+                    elif unit == "M":
+                        td_args['days'] = duration * 30.5
+                    elif unit == "Y":
+                        td_args['days'] = duration * 365
+                    filter_date = datetime.now() - timedelta(**td_args)
+
+                    def filter_time(t):
+                        if split == ">":
+                            return t.date_added < filter_date
+                        else:
+                            return t.date_added > filter_date
+
+                    torrents = filter_torrents_by(torrents, key=filter_time)
+                    self.conditional_print(torrents, i == len(args))
+
             else:
                 raise CmdError("Unknown function: {}".format(arg))
         return torrents

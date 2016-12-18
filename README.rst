@@ -23,8 +23,8 @@ as to what to remove.
 ts_cli.py
 ---------
 
-A unix shell like interpreter. You can chan commands together similar to using pipes in any
-standard unix-like shell. Filters and commands are separated by | characters.
+Currently the most interesting script, it provides a vaguely unix-y shell like interpreter. You can chan commands
+together similar to using pipes in any standard unix-like shell. Filters and commands are separated by | characters.
 
 The main initial command to use is `ls`. If you give no arguments it will just list
 out all torrents, similar to ls on a unix command line listing files.
@@ -94,3 +94,25 @@ Running commands without invoking the REPL prompt. All commands from the REPL in
     [664] [BTN] The.Last.Leg.S09E10.720p.HDTV.mkv 100% ra: 0.1106 up: 0.0 kB/s dn: 0.0 kB/s [seeding]
     [663] [BTN] Stephen.Colbert.2016.12.14.Neil.Patrick.Harris.720p 100% ra: 0.1875 up: 0.0 kB/s dn: 0.0 kB/s [seeding]
 
+Filtering by time comparisons. This example shows all torrents that are less than 10 hours old. The time arguments come in 3 parts.
+The operator (< or >), the duration, a positive integer, and a unit, one of [mhdwMY] which are listed below.
+
+- m = Minutes
+- h = Hours
+- d = Days
+- w = Weeks
+- M = Months
+- Y = Years
+
+Limiting to torrents less than 10 hours old.
+
+    (TS@172.16.1.9:9091)> ls | time=<10h
+    [665] [BTN] the.daily.show.2016.12.14.michael.k.williams.720p.hdtv.x264-w4f.mkv [100%/424.1 MB] ra: 0.0961 up: 0.0 kB/s dn: 0.0 kB/s [seeding]
+    [666] [BTN] Saturday.Night.Live.S42E10.Casey.Affleck.720p.HDTV.x264-BRISK.mkv [100%/1.7 GB] ra: 0.0684 up: 0.0 kB/s dn: 0.0 kB/s [seeding]
+    [667] [DEF] Snowden.2016.720p.BluRay.x264-SPARKS [100%/7.1 GB] ra: 0.0132 up: 0.0 kB/s dn: 0.0 kB/s [seeding]
+
+Filter to torrents with a age of less than a day, limiting output to 2 results.::
+
+    (TS@172.16.1.9:9091)> ls|time=<1d | 2
+    [659] [BTN] The.Twilight.Zone.1959.S01.720p.BluRay.x264-aAF [100%/42.2 GB] ra: 0.0 up: 0.0 kB/s dn: 0.0 kB/s [seeding]
+    [660] [BTN] The.Twilight.Zone.1960.S02.720p.BluRay.x264-aAF [100%/34.0 GB] ra: 0.0 up: 0.0 kB/s dn: 0.0 kB/s [seeding]
