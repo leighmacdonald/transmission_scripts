@@ -4,7 +4,7 @@ from os.path import dirname, join
 
 import sys
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 
 if sys.platform == "win32":
     install_requires = ['transmissionrpc', 'termcolor', 'colorama']
