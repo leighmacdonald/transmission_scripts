@@ -7,7 +7,7 @@ import argparse
 import cmd
 import re
 from datetime import timedelta, datetime
-from transmissionscripts import colored, natural_size
+from transmissionscripts import colored, natural_size, find_all_trackers
 
 try:
     from urllib.parse import urlparse
@@ -37,7 +37,7 @@ class TorrentCLI(cmd.Cmd):
         """
 
         :param client:
-        :type client: transmissionrpc.Client
+        :type client: transmissionscripts.TSClient
         """
         cmd.Cmd.__init__(self)
         self.client = client
@@ -69,8 +69,8 @@ class TorrentCLI(cmd.Cmd):
     def help_ls(self):
         print("HELP FOR LS")
 
-    def _parse_line(self, line):
-        return [arg.strip().lower() for arg in line.split("|") if arg]
+    def _parse_line(self, line, sep="|"):
+        return [arg.strip().lower() for arg in line.split(sep) if arg]
 
     def do_ls(self, line):
         parsed_args = self._parse_line(line)
@@ -178,6 +178,39 @@ class TorrentCLI(cmd.Cmd):
                 raise CmdError("Unknown function: {}".format(arg))
         return torrents
 
+    def do_enablelimits(self, line):
+        self.client.set_enabled_limits(True, False)
+        self.msg("Enabled speed limits.")
+
+    def do_disablelimits(self, line):
+        self.client.set_enabled_limits(False, False)
+        self.msg("Disabled speed limits.")
+
+    def do_enablealtlimits(self, line):
+        self.client.set_enabled_limits(True, True)
+        self.msg("Enabled alt speed limits.")
+
+    def do_disablealtlimits(self, line):
+        self.client.set_enabled_limits(False, True)
+        self.msg("Disabled alt speed limits.")
+
+    def do_limit(self, line, alt=False):
+        args = self._parse_line(line, " ")
+        if not args:
+            return self.error("Must supply 2 arguments: $upload_speed $download_speed")
+        try:
+            self.client.set_limits(speed_up=float(args[0]), speed_dn=float(args[1]), alt=alt)
+        except TypeError:
+            self.error("Failed to parse speeds, formats: 0 or 0.0")
+        else:
+            self.client.set_enabled_limits(True, alt=alt)
+            self.msg("Set speed limits successfully to: {}/s up & {}/s down ".format(
+                natural_size(float(args[0]) * 1000), natural_size(float(args[1]) * 1000)
+            ))
+
+    def do_altlimit(self, line):
+        self.do_limit(line, True)
+
     def do_stop(self, line):
         ids = line.split(" ")
         if not ids:
@@ -207,17 +240,47 @@ class TorrentCLI(cmd.Cmd):
             len(torrents), natural_size(sum(t.totalSize for t in torrents))))
         return torrents
 
-    def do_clientstats(self, line):
-        stats = self.client.session_stats()
-        torrents = self.client.get_torrents()
-        print("[Total  ] Up: {} Dn: {} ".format(
-            natural_size(stats.cumulative_stats['downloadedBytes']),
-            natural_size(stats.cumulative_stats['uploadedBytes'])))
+    def do_verify(self, line):
+        ids = self._parse_line(line, " ")
+        self.client.verify_torrent(ids)
+        self.msg("Starting verify of {} torrents".format(len(ids)))
 
-        print("[Session] Up: {} Dn: {} ".format(
+    def do_clientstats(self, line):
+        torrents = self.client.get_torrents()
+        stats = self.client.session_stats()
+
+        # All Time totals
+        print("[AllTime] Uploaded: {} Downloaded: {} Files: {} Active: {}".format(
+            natural_size(stats.cumulative_stats['downloadedBytes']),
+            natural_size(stats.cumulative_stats['uploadedBytes']),
+            stats.cumulative_stats['filesAdded'],
+            stats.cumulative_stats['secondsActive']
+        ))
+
+        # Session stats
+        print("[Session] Uploaded: {} Downloaded: {} Files: {} Active: {} Free Space: {}".format(
             natural_size(stats.current_stats['downloadedBytes']),
-            natural_size(stats.current_stats['uploadedBytes']))
-        )
+            natural_size(stats.current_stats['uploadedBytes']),
+            stats.current_stats['filesAdded'],
+            stats.current_stats['secondsActive'],
+            natural_size(stats.download_dir_free_space)
+        ))
+        print("[Stats  ] Current Speed: Up: {}/s / Dn: {}/s Active Torrents: {}".format(
+            natural_size(stats.uploadSpeed),
+            natural_size(stats.downloadSpeed),
+            stats.torrentCount
+        ))
+
+        # Tracker info
+        for tracker in find_all_trackers(torrents):
+            def filter_tracker(t):
+                return tracker.lower() in find_tracker(t).lower()
+            tracker_torrents = filter_torrents_by(torrents, key=filter_tracker)
+            print("[Tracker] Name: {} Torrents: {} Total Size: {}".format(
+                tracker,
+                len(tracker_torrents),
+                natural_size(sum(t.totalSize for t in tracker_torrents))
+            ))
 
 
 def parse_args():

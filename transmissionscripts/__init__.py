@@ -265,6 +265,34 @@ class TSClient(transmissionrpc.Client):
             torrents = sort_torrents_by(torrents, key=getattr(Sort, sort_by), reverse=reverse)
         return torrents
 
+    def set_limits(self, speed_up=None, speed_dn=None, alt=False):
+        kwargs = {}
+        if alt:
+            if speed_up is not None:
+                kwargs['alt_speed_up'] = speed_up
+            if speed_dn is not None:
+                kwargs['alt_speed_down'] = speed_up
+        else:
+            if speed_up is not None:
+                kwargs['speed_limit_up'] = speed_up
+            if speed_dn is not None:
+                kwargs['speed_limit_down'] = speed_dn
+        self.set_session(**kwargs)
+
+    def set_enabled_limits(self, status, alt=False):
+        kwargs = {}
+        if alt:
+            kwargs['alt_speed_enabled'] = status
+        else:
+            kwargs['speed_limit_down_enabled'] = int(status)
+            kwargs['speed_limit_up_enabled'] = int(status)
+        self.set_session(**kwargs)
+
+    def set_peer_limit(self, limits, is_global=True):
+        if is_global:
+            self.set_session(peer_limit_global=limits)
+        else:
+            self.set_session(peer_limit=limits)
 
 def make_client(args=None):
     """ Create a new transmission RPC client
@@ -328,6 +356,7 @@ class Filter(object):
     def lifetime(t):
         return t.date_added
 
+
 def filter_torrents_by(torrents, key=Filter.all):
     """
 
@@ -340,6 +369,13 @@ def filter_torrents_by(torrents, key=Filter.all):
         if key(torrent):
             filtered_torrents.append(torrent)
     return filtered_torrents
+
+
+def find_all_trackers(torrents):
+    trackers = set()
+    for torrent in torrents:
+        trackers.add(find_tracker(torrent))
+    return trackers
 
 
 class Sort(object):
@@ -386,7 +422,7 @@ class Sort(object):
 
     @staticmethod
     def size(t):
-        return t.totalSize
+        return -t.totalSize
 
     @staticmethod
     def id(t):
