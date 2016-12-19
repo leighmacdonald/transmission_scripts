@@ -3,6 +3,7 @@
 """
 Simple script that will output a list of the currently loaded torrents. Various formatting, colouring, sorting
 and filtering options exist.
+
 """
 import argparse
 from transmissionscripts import make_client, Sort, print_torrent_line, make_arg_parser, Filter

@@ -85,7 +85,7 @@ def _supports_color():
                 import colorama
                 import win_unicode_console
             except ImportError:
-                pass
+                logger.warning("Failed to import color/unicode support for win32")
             else:
                 win_unicode_console.enable()
                 colorama.init()

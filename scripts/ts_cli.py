@@ -30,6 +30,7 @@ class TorrentCLI(cmd.Cmd):
     _cmd_name = ("n", "name")
     _cmd_tracker = ("t", "tracker")
     _cmd_time = ("time",)
+
     _args_time = re.compile(r"(?P<dir>[<>])(?P<duration>\d+)(?P<unit>[mhdwMY])")
 
     def __init__(self, client):

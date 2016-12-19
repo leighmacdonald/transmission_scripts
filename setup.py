@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from distutils.core import setup
 from os.path import dirname, join
-
 import sys
 
 VERSION = "0.3.1"
