@@ -3,7 +3,7 @@ from distutils.core import setup
 from os.path import dirname, join
 import sys
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 
 if sys.platform == "win32":
     install_requires = ['transmissionrpc', 'termcolor', 'colorama', 'win_unicode_console']
