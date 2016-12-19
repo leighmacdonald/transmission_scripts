@@ -152,10 +152,14 @@ def make_arg_parser():
     options before passing the options into the client as demonstrated below.
 
     >>> def parse_args():
-    >>>     parser = make_arg_parser()
-    >>>     parser.add_argument('--sort_progress', action='store_true')
+    >>>     parser = argparse.ArgumentParser(
+    >>>         description='Clean out old torrents from the transmission client via RPC',
+    >>>         parents=[make_arg_parser()]
+    >>>     )
+    >>>     parser.add_argument("--example", "-e", dest="example", help="Example command")
     >>>     return parser.parse_args()
-    >>> rpc_client = make_client(parse_args())
+    >>> args = parse_args()
+
 
     :return: New argparse instance
     :rtype: argparse.ArgumentParser

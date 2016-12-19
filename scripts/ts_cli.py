@@ -7,12 +7,12 @@ import argparse
 import cmd
 import re
 from datetime import timedelta, datetime
-
-from transmissionscripts import colored
+from transmissionscripts import colored, natural_size
 
 try:
     from urllib.parse import urlparse
 except ImportError:
+    # noinspection PyUnresolvedReferences
     from urlparse import urlparse
 from transmissionscripts import make_client, make_arg_parser, print_torrent_line, Filter, Sort, filter_torrents_by, \
     sort_torrents_by, find_tracker
@@ -29,7 +29,7 @@ class TorrentCLI(cmd.Cmd):
     _cmd_reverse = ("r", "rev", "reverse")
     _cmd_name = ("n", "name")
     _cmd_tracker = ("t", "tracker")
-    _cmd_time = ("time")
+    _cmd_time = ("time",)
     _args_time = re.compile(r"(?P<dir>[<>])(?P<duration>\d+)(?P<unit>[mhdwMY])")
 
     def __init__(self, client):
@@ -41,6 +41,19 @@ class TorrentCLI(cmd.Cmd):
         cmd.Cmd.__init__(self)
         self.client = client
         self.prompt = self._generate_prompt()
+
+    def default(self, line):
+        """Called on an input line when the command prefix is not recognized.
+
+        If this method is not overridden, it prints an error message and
+        returns.
+
+        """
+        args = self._parse_line(line)
+        if args[0] in ("total_size",):
+            self.total_size()
+
+        self.stdout.write('*** Unknown syntax: %s\n' % line)
 
     def _generate_prompt(self):
         url = urlparse(self.client.url)
@@ -55,11 +68,14 @@ class TorrentCLI(cmd.Cmd):
     def help_ls(self):
         print("HELP FOR LS")
 
+    def _parse_line(self, line):
+        return [arg.strip().lower() for arg in line.split("|") if arg]
+
     def do_ls(self, line):
-        args = [arg.strip().lower() for arg in line.split("|") if arg]
+        parsed_args = self._parse_line(line)
         try:
-            torrents = self._apply_functions(self.client.get_torrents(), args)
-            if not args:
+            torrents = self._apply_functions(self.client.get_torrents(), parsed_args)
+            if not parsed_args:
                 self.print_torrents(torrents)
         except CmdError as err:
             self.error(err)
@@ -104,6 +120,8 @@ class TorrentCLI(cmd.Cmd):
                 torrents = sort_torrents_by(torrents, key=getattr(Sort, arg))
                 if i == len(args):
                     self.print_torrents(torrents)
+            elif arg in ("total_size",):
+                self.total_size(torrents)
             elif arg in ("stop", "pause"):
                 for torrent in torrents:
                     self.client.stop_torrent(torrent.hashString)
@@ -155,7 +173,6 @@ class TorrentCLI(cmd.Cmd):
 
                     torrents = filter_torrents_by(torrents, key=filter_time)
                     self.conditional_print(torrents, i == len(args))
-
             else:
                 raise CmdError("Unknown function: {}".format(arg))
         return torrents
@@ -182,6 +199,25 @@ class TorrentCLI(cmd.Cmd):
         if condition:
             self.print_torrents(torrents)
 
+    def total_size(self, torrents=None):
+        if torrents is None:
+            torrents = self.client.get_torrents()
+        self.msg("Total size for {} torrents: {}".format(
+            len(torrents), natural_size(sum(t.totalSize for t in torrents))))
+        return torrents
+
+    def do_clientstats(self, line):
+        stats = self.client.session_stats()
+        torrents = self.client.get_torrents()
+        print("[Total  ] Up: {} Dn: {} ".format(
+            natural_size(stats.cumulative_stats['downloadedBytes']),
+            natural_size(stats.cumulative_stats['uploadedBytes'])))
+
+        print("[Session] Up: {} Dn: {} ".format(
+            natural_size(stats.current_stats['downloadedBytes']),
+            natural_size(stats.current_stats['uploadedBytes']))
+        )
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -194,9 +230,9 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    cli = TorrentCLI(make_client(args))
+    cli_args = parse_args()
+    cli = TorrentCLI(make_client(cli_args))
     try:
-        cli.onecmd(args.execute) if args.execute else cli.cmdloop()
+        cli.onecmd(cli_args.execute) if cli_args.execute else cli.cmdloop()
     except KeyboardInterrupt:
         print("")
