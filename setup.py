@@ -7,7 +7,7 @@ import sys
 VERSION = "0.3.1"
 
 if sys.platform == "win32":
-    install_requires = ['transmissionrpc', 'termcolor', 'colorama']
+    install_requires = ['transmissionrpc', 'termcolor', 'colorama', 'win_unicode_console']
 else:
     install_requires = ['transmissionrpc', 'termcolor']
 

@@ -14,6 +14,7 @@ from os.path import expanduser, join, exists, isdir
 from os import makedirs, environ
 import transmissionrpc
 
+
 logging.basicConfig()
 
 logger = logging.getLogger('transmissionscripts')
@@ -62,7 +63,7 @@ CONFIG = {
 }
 
 
-# noinspection PyPackageRequirements
+# noinspection PyPackageRequirements,PyUnresolvedReferences
 def _supports_color():
     """ Returns True if the running system's terminal supports color,
     and False otherwise.
@@ -81,11 +82,12 @@ def _supports_color():
     if not supported_platform or not is_a_tty:
         if plat == 'win32':
             try:
-                # noinspection PyUnresolvedReferences
                 import colorama
+                import win_unicode_console
             except ImportError:
                 pass
             else:
+                win_unicode_console.enable()
                 colorama.init()
                 return True
         return False
