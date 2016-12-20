@@ -7,7 +7,7 @@ import argparse
 import cmd
 import re
 from datetime import timedelta, datetime
-from transmissionscripts import colored, natural_size, find_all_trackers
+from transmissionscripts import colored, natural_size, find_all_trackers, find_torrent_ids
 
 try:
     from urllib.parse import urlparse
@@ -60,7 +60,8 @@ class TorrentCLI(cmd.Cmd):
         url = urlparse(self.client.url)
         return "(TS@{}:{})> ".format(url.hostname, url.port)
 
-    def msg(self, msg, prefix=">>>", color="green"):
+    @staticmethod
+    def msg(msg, prefix=">>>", color="green"):
         print(colored("{} {}".format(prefix, msg), color=color))
 
     def error(self, msg):
@@ -69,7 +70,8 @@ class TorrentCLI(cmd.Cmd):
     def help_ls(self):
         print("HELP FOR LS")
 
-    def _parse_line(self, line, sep="|"):
+    @staticmethod
+    def _parse_line(line, sep="|"):
         return [arg.strip().lower() for arg in line.split(sep) if arg]
 
     def do_ls(self, line):
@@ -87,6 +89,11 @@ class TorrentCLI(cmd.Cmd):
     def print_torrents(self, torrents):
         for torrent in torrents:
             print_torrent_line(torrent)
+
+    def rm_torrents(self, ids, delete_data=False):
+        self.client.remove_torrent(ids, delete_data=delete_data)
+        self.msg("Removing {} torrents from client".format(len(ids)))
+        return []
 
     def _apply_functions(self, torrents, args):
         for i, arg in enumerate(args, start=1):
@@ -113,6 +120,10 @@ class TorrentCLI(cmd.Cmd):
                 torrents.reverse()
                 if i == len(args):
                     self.print_torrents(torrents)
+            elif arg in ("remove", "rm"):
+                return self.rm_torrents(find_torrent_ids(torrents), delete_data=False)
+            elif arg in ("delete",):
+                return self.rm_torrents(find_torrent_ids(torrents), delete_data=True)
             elif arg in Filter.names:
                 torrents = filter_torrents_by(torrents, key=getattr(Filter, arg))
                 if i == len(args):
@@ -244,6 +255,12 @@ class TorrentCLI(cmd.Cmd):
         ids = self._parse_line(line, " ")
         self.client.verify_torrent(ids)
         self.msg("Starting verify of {} torrents".format(len(ids)))
+
+    def do_delete(self, line):
+        self.rm_torrents(self._parse_line(line, " "), delete_data=True)
+
+    def do_remove(self, line):
+        self.rm_torrents(self._parse_line(line, " "), delete_data=False)
 
     def do_clientstats(self, line):
         torrents = self.client.get_torrents()

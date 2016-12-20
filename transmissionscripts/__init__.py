@@ -294,6 +294,11 @@ class TSClient(transmissionrpc.Client):
         else:
             self.set_session(peer_limit=limits)
 
+
+def find_torrent_ids(torrents):
+    return {t.id for t in torrents}
+
+
 def make_client(args=None):
     """ Create a new transmission RPC client
 
