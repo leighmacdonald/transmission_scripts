@@ -34,7 +34,7 @@ LOCAL_ERRORS = {
 # Seed a bit longer than required to account for any weirdness
 SEED_TIME_BUFFER = 1.1
 
-RULES_DEFAULT = 'DEFAULT'
+RULES_DEFAULT = 'DEF'
 
 CONFIG = {
     'CLIENT': {
@@ -45,17 +45,17 @@ CONFIG = {
     },
     'RULES': {
         'apollo': {
-            'name': 'apollo',
+            'name': 'APO',
             'min_time': int((3600 * 24 * 30) * SEED_TIME_BUFFER),
             'max_ratio': 2.0
         },
         'landof.tv': {
-            'name': 'btn',
+            'name': 'BTN',
             'min_time': int((3600 * 120.0) * SEED_TIME_BUFFER),
             'max_ratio': 1.0
         },
         RULES_DEFAULT: {
-            'name': 'default',
+            'name': RULES_DEFAULT,
             'min_time': int((3600 * 240) * SEED_TIME_BUFFER),
             'max_ratio': 2.0
         }
@@ -110,8 +110,13 @@ def colored(msg, color=None, on_color=None, attrs=None):
     :return: str
     """
     if HAS_COLOUR:
-        from termcolor import colored as c
-        return c(msg, color=color, on_color=on_color, attrs=attrs)
+        # noinspection PyUnresolvedReferences,PyUnresolvedReferences
+        try:
+            from termcolor import colored as c
+        except ImportError:
+            return msg
+        else:
+            return c(msg, color=color, on_color=on_color, attrs=attrs)
     else:
         return msg
 
@@ -453,6 +458,7 @@ class Sort(object):
 def sort_torrents_by(torrents, key=Sort.name, reverse=False):
     return sorted(torrents, key=key, reverse=reverse)
 
+
 _reset_color = colored("", "white")
 
 
@@ -627,3 +633,19 @@ def natural_size(value, binary=False, gnu=False, fmt='%.1f'):
     if gnu:
         return (fmt + '%s') % ((base * byte_total / unit), s)
     return (fmt + ' %s') % ((base * byte_total / unit), s)
+
+
+__all__ = (
+    "colored",
+    "natural_size",
+    "find_all_trackers",
+    "find_torrent_ids",
+    "make_client",
+    "make_arg_parser",
+    "print_torrent_line",
+    "Filter",
+    "Sort",
+    "filter_torrents_by",
+    "sort_torrents_by",
+    "find_tracker"
+)
