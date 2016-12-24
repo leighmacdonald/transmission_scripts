@@ -6,20 +6,21 @@
 import argparse
 import cmd
 import re
+import time
 from datetime import timedelta, datetime
-from transmissionscripts import colored, natural_size, find_all_trackers, find_torrent_ids
-
+from transmissionscripts import *
 try:
     from urllib.parse import urlparse
 except ImportError:
     # noinspection PyUnresolvedReferences
     from urlparse import urlparse
-from transmissionscripts import make_client, make_arg_parser, print_torrent_line, Filter, Sort, filter_torrents_by, \
-    sort_torrents_by, find_tracker
 
 
 class CmdError(Exception):
     pass
+
+SEP_CMD = "|"
+SEP_ARG = " "
 
 
 class TorrentCLI(cmd.Cmd):
@@ -71,7 +72,7 @@ class TorrentCLI(cmd.Cmd):
         print("HELP FOR LS")
 
     @staticmethod
-    def _parse_line(line, sep="|"):
+    def _parse_line(line, sep=SEP_CMD):
         return [arg.strip().lower() for arg in line.split(sep) if arg]
 
     def do_ls(self, line):
@@ -188,6 +189,27 @@ class TorrentCLI(cmd.Cmd):
             else:
                 raise CmdError("Unknown function: {}".format(arg))
         return torrents
+
+    def do_watch(self, line):
+        wait_time = 5.0
+        new_line = line.strip()
+        has_time = re.match(r"^(?P<wait_time>\d|\d\.\d)", new_line)
+        if has_time:
+            new_wait_time = has_time.groups()[0]
+            if new_wait_time:
+                wait_time = float(new_wait_time)
+            new_line = SEP_CMD.join(line.split(SEP_CMD)[1:]).strip()
+        elif new_line[0] == SEP_CMD:
+            new_line = new_line[1:]
+        else:
+            return self.error("Invalid syntax")
+        while True:
+            try:
+                self.onecmd(new_line)
+                self.msg("Running every {} seconds: {} (ctrl+c to stop)".format(wait_time, new_line))
+                time.sleep(wait_time)
+            except KeyboardInterrupt:
+                return
 
     def do_enablelimits(self, line):
         self.client.set_enabled_limits(True, False)
