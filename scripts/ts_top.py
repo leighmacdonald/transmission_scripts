@@ -1,6 +1,8 @@
 import argparse
 import sys
 from time import sleep
+
+from transmissionscripts import filesystem, natural_size
 from transmissionscripts import make_client, make_arg_parser
 try:
     # noinspection PyUnresolvedReferences
@@ -18,8 +20,13 @@ BODY_SIZE = 6
 
 def draw_header(scr):
     max_height, max_width = scr.getmaxyx()
-    for i in range(0, max_height-1):
-        scr.addstr(i, 1, "x")
+    drives = {"/"}
+    scr.addstr(0, 1, "Disk free: {}".format(", ".join(
+        ["{} ({})".format(natural_size(filesystem.get_free_space(d)), d) for d in drives]
+    )))
+    scr.addstr(1, 1, "1")
+    scr.addstr(2, 1, "2")
+    scr.addstr(3, 1, "3s")
     scr.refresh()
 
 
@@ -38,7 +45,7 @@ def draw_body(scr):
 
 def top(args):
     scr = curses.initscr()
-    scr.start_color()
+    #scr.start_color()
     curses.noecho()
     curses.cbreak()
     hx, wm = scr.getmaxyx()
